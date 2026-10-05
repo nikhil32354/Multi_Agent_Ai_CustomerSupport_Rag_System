@@ -135,6 +135,15 @@ class IntentAgent:
     @staticmethod
     def route(message: str) -> str:
         text = message.lower()
+        normalized_text = re.sub(r'[^a-z0-9\s]', '', text).strip()
+        small_talk = {
+            'hi', 'hello', 'hey', 'hiya', 'good morning', 'good afternoon',
+            'good evening', 'howdy', 'bye', 'goodbye', 'good bye', 'see you',
+            'thanks', 'thank you', 'ok thanks', 'okay thanks', 'thanks bye',
+        }
+        if normalized_text in small_talk:
+            return 'faq'
+
         explicit_ticket_request = any(
             phrase in text
             for phrase in (
@@ -170,13 +179,22 @@ class IntentAgent:
         if explicit_ticket_request or human_assistance_request or unresolved_problem or billing_dispute:
             return 'ticket'
 
-        # Keep answerable questions with the FAQ agent; escalate when the local
-        # knowledge base has no relevant passage to answer from.
-        return 'faq' if _retrieve_context(message) else 'ticket'
+        # General questions go through FAQ, which can decline gracefully when
+        # the knowledge base has no answer. Only explicit/unresolved support
+        # requests above should create a ticket.
+        return 'faq'
 
 
 class FAQAgent:
     def answer(self, query: str) -> str:
+        normalized_query = re.sub(r'[^a-z0-9\s]', '', query.lower()).strip()
+        if normalized_query in {'hi', 'hello', 'hey', 'hiya', 'good morning', 'good afternoon', 'good evening', 'howdy'}:
+            return 'Hi! How can I help you today?'
+        if normalized_query in {'bye', 'goodbye', 'good bye', 'see you'}:
+            return 'Goodbye! Feel free to come back if you need any more help.'
+        if normalized_query in {'thanks', 'thank you', 'ok thanks', 'okay thanks', 'thanks bye'}:
+            return 'You’re welcome! Let me know if you need anything else.'
+
         passages = _retrieve_context(query)
         if not passages:
             return "I couldn't find that information in the company knowledge base. Please contact support for help."
