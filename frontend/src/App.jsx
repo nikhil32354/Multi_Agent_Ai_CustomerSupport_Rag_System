@@ -87,6 +87,24 @@ export default function App() {
         </main>
 
         {activeView === 'chat' && <aside className="right-panel">
+          <div className="card intent-card">
+            <div style={{display:'flex',alignItems:'center',gap:12}}>
+              <div className="avatar intent-avatar">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M12 2L14.3 8.2L21 12L14.3 15.8L12 22L9.7 15.8L3 12L9.7 8.2L12 2Z" fill="white" opacity="0.95"/>
+                </svg>
+              </div>
+              <div style={{flex:1}}>
+                <h3 style={{margin:0}}>Intent Agent</h3>
+                <p style={{color:'var(--muted)',margin:'6px 0 0'}}>I read the user query first and route it to the correct agent.</p>
+              </div>
+            </div>
+            <ul className="faq-list" style={{marginTop:12}}>
+              <li>Greeting → direct response</li>
+              <li>FAQ question → FAQ Agent</li>
+              <li>Unresolved issue → Ticket Agent</li>
+            </ul>
+          </div>
           <div className="card">
             <div style={{display:'flex',alignItems:'center',gap:12}}>
               <Avatar />

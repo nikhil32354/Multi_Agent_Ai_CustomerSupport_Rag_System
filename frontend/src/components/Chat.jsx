@@ -27,22 +27,32 @@ export default function Chat({ sessionId }){
 
   async function send(){
     if(!text) return
-    const userMsg = { session_id: sessionId, role: 'user', content: text }
-    setMessages(m => [...m, {role:'user', content:text, created_at: ''}])
+
+    const prompts = text
+      .split(/\n+/)
+      .map((value) => value.trim())
+      .filter(Boolean)
+
     setText('')
-    try{
-      const res = await api.chat(userMsg)
-      if(res.intent === 'faq'){
-        setMessages(m => [...m, {role:'assistant', content: res.answer}])
-      } else if(res.intent === 'ticket'){
-        setMessages(m => [...m, {
-          role:'assistant',
-          content:'Your support ticket has been created successfully.',
-          ticket:res.ticket,
-        }])
+
+    for (const prompt of prompts) {
+      const userMsg = { session_id: sessionId, role: 'user', content: prompt }
+      setMessages(m => [...m, {role:'user', content:prompt, created_at: ''}])
+
+      try{
+        const res = await api.chat(userMsg)
+        if(res.intent === 'general' || res.intent === 'faq'){
+          setMessages(m => [...m, {role:'assistant', content: res.answer}])
+        } else if(res.intent === 'ticket'){
+          setMessages(m => [...m, {
+            role:'assistant',
+            content: res.answer || 'Human assistance is needed for your query. I have created a support ticket for you.',
+            ticket:res.ticket,
+          }])
+        }
+      }catch(err){
+        setMessages(m => [...m, {role:'assistant', content: 'Sorry, there was an error contacting the server.'}])
       }
-    }catch(err){
-      setMessages(m => [...m, {role:'assistant', content: 'Sorry, there was an error contacting the server.'}])
     }
   }
 

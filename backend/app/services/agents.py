@@ -133,16 +133,54 @@ def _retrieve_context(query: str, limit: int = 3) -> list[tuple[str, str]]:
 
 class IntentAgent:
     @staticmethod
+    def _classify_with_llm(message: str) -> str | None:
+        if not settings.groq_api_key or OpenAI is None:
+            return None
+
+        try:
+            client = OpenAI(api_key=settings.groq_api_key, base_url=settings.groq_base_url)
+            response = client.chat.completions.create(
+                model=settings.groq_model,
+                messages=[
+                    {
+                        'role': 'system',
+                        'content': (
+                            'Classify the customer message into exactly one intent: general, faq, or ticket. '
+                            'Use general for greetings or casual conversation. Use faq for policy or product questions that can be answered from the knowledge base. '
+                            'Use ticket when the message describes a problem, broken experience, refund issue, cancellation request, or asks for a human/support ticket. '
+                            'Reply with only one word: general, faq, or ticket.'
+                        ),
+                    },
+                    {'role': 'user', 'content': message},
+                ],
+                temperature=0.1,
+                max_tokens=16,
+            )
+            intent = (response.choices[0].message.content or '').strip().lower()
+            if intent in {'general', 'faq', 'ticket'}:
+                return intent
+        except Exception:
+            return None
+        return None
+
+    @staticmethod
     def route(message: str) -> str:
-        text = message.lower()
+        text = message.lower().replace('cancle', 'cancel')
+        text = text.replace('cancelled', 'cancelled').replace('canceled', 'canceled')
         normalized_text = re.sub(r'[^a-z0-9\s]', '', text).strip()
+
+        if normalized_text:
+            llm_intent = IntentAgent._classify_with_llm(message)
+            if llm_intent:
+                return llm_intent
+
         small_talk = {
             'hi', 'hello', 'hey', 'hiya', 'good morning', 'good afternoon',
             'good evening', 'howdy', 'bye', 'goodbye', 'good bye', 'see you',
             'thanks', 'thank you', 'ok thanks', 'okay thanks', 'thanks bye',
         }
         if normalized_text in small_talk:
-            return 'faq'
+            return 'general'
 
         explicit_ticket_request = any(
             phrase in text
@@ -151,6 +189,16 @@ class IntentAgent:
                 'raise a ticket', 'billing support ticket', 'support ticket',
             )
         )
+        order_cancellation_request = any(
+            phrase in text
+            for phrase in (
+                'cancel my order', 'cancel this order', 'cancel an order',
+                'cancel order', 'cancel the order', 'cancelled my order',
+                'cancelled this order', 'cancelled an order', 'canceled my order',
+                'canceled this order', 'canceled an order', 'need to cancel my order',
+                'i need to cancel my order', 'i want to cancel my order',
+            )
+        ) or bool(re.search(r'\b(cancel|cancelled|canceled|withdraw|void)\b.*\b(order|subscription|purchase|membership|delivery)\b', text))
         human_assistance_request = any(
             phrase in text
             for phrase in (
@@ -166,6 +214,32 @@ class IntentAgent:
                 'still not working', 'still does not work', "still doesn't work",
                 'still not fixed', 'not resolved', 'issue persists', 'problem persists',
                 'tried everything', 'already tried', 'nothing has worked',
+                'unable to refund', 'unable to get refund', 'unable to receive refund',
+                'cannot refund', "can't refund", 'cannot get refund', "can't get refund",
+                "can't get a refund", 'cannot get a refund',
+                'refund not received', 'not received my refund',
+                'refund not processed', 'refund has not been processed',
+                'my refund has not been processed',
+                "refund hasn't arrived", 'refund has not arrived',
+                'refund hasnt arrived', 'my refund hasnt arrived',
+                'my refund has not arrived', 'my refund has not arrived yet',
+                'refund hasnt come', 'refund hasn t arrived',
+                'i need a refund', 'need a refund', 'refund request',
+                'need help with refund', 'need help with my refund',
+                'i need help with my refund', 'my order is delayed',
+                'order never arrived', 'order has not arrived', 'still waiting for refund',
+                'not received my order', 'my package has not arrived',
+                'my refund is late', 'my refund has not come', 'refund still pending',
+                'refund still has not arrived', 'refund still pending',
+                'i need my refund', 'need my refund', 'refund hasnt arrived',
+            )
+        ) or bool(re.search(r'\b(refund|money back|reimbursement)\b', text) and re.search(r'\b(not|hasn|has not|have not|still|pending|waiting|late|issue|problem|failed|unable|cannot|can\'t|need|help|request|processed|received|arrived|come)\b', text))
+        support_need = any(
+            phrase in text
+            for phrase in (
+                'i need help', 'need help', 'please help', 'can you help',
+                'speak to support', 'contact support', 'need support',
+                'i need support', 'support please', 'agent please',
             )
         )
         billing_dispute = any(
@@ -174,14 +248,16 @@ class IntentAgent:
                 'charged twice', 'charged me twice', 'double charged',
                 'duplicate charge', 'charged two times', 'refund dispute',
                 'disputed charge', 'unauthorized charge', 'wrong amount charged',
+                'charged me twice', 'my charge was duplicated', 'i was charged twice',
+                'my account was charged twice', 'duplicate billing', 'billing error',
+                'charged incorrectly', 'wrong charge', 'overcharged', 'double billed',
             )
-        )
-        if explicit_ticket_request or human_assistance_request or unresolved_problem or billing_dispute:
+        ) or bool(re.search(r'\b(charge|charged|billing|payment)\b', text) and re.search(r'\b(twice|double|duplicate|wrong|incorrect|unauthorized|fraud)\b', text))
+        if explicit_ticket_request or order_cancellation_request or human_assistance_request or unresolved_problem or billing_dispute or support_need:
             return 'ticket'
 
-        # General questions go through FAQ, which can decline gracefully when
-        # the knowledge base has no answer. Only explicit/unresolved support
-        # requests above should create a ticket.
+        # FAQ questions are routed to the knowledge-base assistant unless they are
+        # greetings or unresolved support issues that should become a ticket.
         return 'faq'
 
 

@@ -30,20 +30,29 @@ def init_cors(app):
 
 @router.post('/chat')
 def chat(payload: MessageCreate, db: Session = Depends(get_db)):
-    crud.add_message(db, payload.session_id, 'user', payload.content)
-    # route intent
+    sender_role = payload.role or 'user'
+    crud.add_message(db, payload.session_id, sender_role, payload.content)
     intent = services.IntentAgent.route(payload.content)
+
+    if intent == 'general':
+        answer = 'Hi sir, how can I help you?'
+        crud.add_message(db, payload.session_id, 'assistant', answer)
+        return {'intent': 'general', 'answer': answer}
+
     if intent == 'faq':
         faq = services.FAQAgent()
         answer = faq.answer(payload.content)
         crud.add_message(db, payload.session_id, 'assistant', answer)
         return {'intent': 'faq', 'answer': answer}
-    else:
-        ticket_agent = services.TicketAgent(db)
-        t = ticket_agent.create_ticket(title=f'From chat: {payload.content[:100]}', description=payload.content)
-        msg = f'Ticket created successfully. Ticket ID: #{t.id}. Status: {t.status}.'
-        crud.add_message(db, payload.session_id, 'assistant', msg)
-        return {'intent': 'ticket', 'ticket': TicketOut.model_validate(t)}
+
+    ticket_agent = services.TicketAgent(db)
+    t = ticket_agent.create_ticket(title=f'From chat: {payload.content[:100]}', description=payload.content)
+    msg = (
+        f'Human assistance is needed for your query. I have created a support ticket for you. '
+        f'Ticket ID: #{t.id}. Status: {t.status}.'
+    )
+    crud.add_message(db, payload.session_id, 'assistant', msg)
+    return {'intent': 'ticket', 'ticket': TicketOut.model_validate(t), 'answer': msg}
 
 
 # Upload endpoint removed — knowledge base is hosted on backend under backend/knowledge_base

@@ -41,8 +41,11 @@ body{font-family:Inter, system-ui, Arial, sans-serif;background:radial-gradient(
 .ts{font-size:11px;color:var(--muted);margin-top:6px}
 .right-panel{background:linear-gradient(180deg, rgba(255,209,102,0.08), rgba(255,45,149,0.06));border-radius:12px;padding:18px;box-shadow:0 12px 30px rgba(40,10,20,0.45)}
 .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,45,149,0.02));border-radius:10px;padding:12px;margin-bottom:12px;backdrop-filter: blur(6px)}
-/* Gradient text for card headers (FAQ / Ticket) */
+.intent-card{background:linear-gradient(180deg, rgba(90,16,16,0.42), rgba(37,8,8,0.25));border:1px solid rgba(255,96,96,0.6);box-shadow:0 8px 24px rgba(120,18,18,0.35)}
+.intent-avatar{background:linear-gradient(135deg, #8d1010, #d11b1b);box-shadow:0 8px 22px rgba(170,26,26,0.5)}
+/* Restore original card look for other agent panels */
 .card h3{margin:0 0 6px 0;font-size:18px;background:linear-gradient(90deg,var(--accent-start),var(--accent-end));-webkit-background-clip:text;background-clip:text;color:transparent}
+.intent-card h3{background:linear-gradient(90deg,#ff9a9a,#f93b3b);-webkit-background-clip:text;background-clip:text;color:transparent}
 .avatar{width:56px;height:56px;border-radius:50%;background:linear-gradient(90deg,var(--accent-start),var(--accent-end));display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,0.04)}
 .avatar.small{width:40px;height:40px;border-radius:50%}
 .avatar svg{width:60%;height:60%;display:block}

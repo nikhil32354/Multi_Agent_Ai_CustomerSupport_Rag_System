@@ -4,8 +4,8 @@ from typing import Optional
 
 class MessageCreate(BaseModel):
     session_id: str
-    role: str
     content: str
+    role: str = 'user'
 
 
 class TicketCreate(BaseModel):

@@ -12,17 +12,26 @@ React/Vite frontend, FastAPI API, Groq-powered FAQ with retrieval from local PDF
 
 Local development defaults to SQLite. Add approved business documents to `backend/knowledge_base/`; restart the API after changing them. The included NovaOne PDF is fictional sample material, not real business policy.
 
-## Deploy to Render
+## Deploy the backend to Koyeb
 
-`render.yaml` describes a Render API web service, a static frontend, and a PostgreSQL database. Connect the GitHub repository to Render and create a Blueprint from this file.
+The root `Dockerfile` builds the FastAPI backend. Connect the GitHub repository to Koyeb, create a Web Service from the repository, choose the Dockerfile build method, and use the repository root as the build context.
 
-1. In Render, create a **Blueprint Instance** for the connected repository and select `render.yaml`.
-2. Set `GROQ_API_KEY` to a newly generated key when prompted. Do not place API keys in GitHub, this file, or `.env.example`.
-3. Deploy the services. The static site is configured for the API name `agentic-support-api`; if Render assigns a different API URL, set the frontend build variable `VITE_API_BASE_URL` to `<API URL>/api` and redeploy the static site.
-4. After the frontend URL is assigned, set the backend `FRONTEND_ORIGIN` environment variable to that exact `https://...onrender.com` origin, then redeploy the backend.
-5. Check `<API URL>/health` and open the static site to test an FAQ and ticket creation.
+Configure the service with an HTTP port of `8000` and set these environment variables:
 
-The blueprint uses Render's free plans for a demo. Render free web services can sleep when idle; free Postgres expires after 30 days. **Do not use the free database for real customer data or production.** Before a real launch, select a paid persistent Postgres plan and review Render's current pricing and data-retention limits.
+- `GROQ_API_KEY`: your Groq API key. Set it as a Koyeb secret; never commit it.
+- `LLM_PROVIDER`: `groq`
+- `FRONTEND_ORIGIN`: the exact origin of your Netlify site, without a trailing slash (for example, `https://your-site.netlify.app`).
+- `DATABASE_URL`: optional for a demo; defaults to a local SQLite file.
+
+Deploy the service, then check `https://<your-koyeb-service-domain>/health`. In Netlify, set `VITE_API_BASE_URL` to `https://<your-koyeb-service-domain>/api` and redeploy the frontend.
+
+The default SQLite database is local to the running container and is not durable across redeployments or instance replacement. This is suitable only for a disposable demo; use an external PostgreSQL database if demo tickets and chat history must persist.
+
+## Deploy the frontend to Netlify
+
+The root `netlify.toml` configures Netlify with `frontend` as the base directory, `npm run build` as the build command, and `dist` as the publish directory. It also configures a single-page-app fallback and Node.js 22.12.0. For the backend deployment steps, see **Deploy the backend to Koyeb** above.
+
+Without `VITE_API_BASE_URL`, the frontend defaults to `http://localhost:8000/api`, which only works for local development.
 
 ## GitHub safety
 
